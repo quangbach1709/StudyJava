@@ -5,6 +5,12 @@ public class Main {
 
 //        array.Bai1();
 //        array.Bai2();
-        array.Bai3();
+//        array.Bai3();
+//        array.Bai4();
+//        array.Bai5();
+//        array.Bai6();
+
+        string.ChuanHoa();
     }
+
 }
