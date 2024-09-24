@@ -1,6 +1,7 @@
 import Lap4.MyCircle;
 import Lap4.MyPoint;
 import Lap4.MyTriangle;
+import Lap5.MyComplex;
 
 public class Main {
     public static void main(String[] args) {
@@ -13,10 +14,22 @@ public class Main {
 //        System.out.println(c1.getArea());
 //        System.out.println(c1.toString());
 
-        MyTriangle t1 = new MyTriangle(0, 0, 3, 0, 0, 4);
-        System.out.println(t1.getPerimeter());
-        System.out.println(t1.toString());
-        
+//        MyTriangle t1 = new MyTriangle(0, 0, 3, 0, 0, 4);
+//        System.out.println(t1.getPerimeter());
+//        System.out.println(t1.toString());
 
+        MyComplex c1 = new MyComplex(3, 4);
+        MyComplex c2 = new MyComplex(3, 4);
+        System.out.println(c1.equals(c2)); //so sanh 2 so phuc
+        System.out.println(c1.magnitude()); //tinh do lon cua so phuc
+        System.out.println(c1.argumentInDegrees() + " degrees"); //tinh goc cua so phuc
+
+        System.out.println(c1.toString());
+        System.out.println(c1.isReal());
+        //tinh tong hieu tich thuong 2 so phuc
+        System.out.println(c1.add(c2));
+        System.out.println(c1.subtract(c2));
+        System.out.println(c1.multiply(c2));
+        System.out.println(c1.divide(c2));
     }
 }
