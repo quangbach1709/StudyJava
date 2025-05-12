@@ -2,48 +2,53 @@ import java.util.Scanner;
 
 public class Main {
     private static int[] arr;
-    private static int shared_max;
-    private static int shared_min;
-    private static Bakery lock;
+    private static volatile int shared_max;
+    private static volatile int shared_min;
+    private static Dekker lock;
     private static int n; // Array size
-    private static int k; // Number of threads
 
     static class MaxMinThread extends Thread {
-        private int threadId;
+        private Lock lock;
+        private int tid;
         private int start;
         private int end;
 
-        public MaxMinThread(int threadId, int start, int end) {
-            this.threadId = threadId;
+        public MaxMinThread(Lock lock, int tid, int start, int end) {
+            this.lock = lock;
+            this.tid = tid;
             this.start = start;
             this.end = end;
+        }
+
+        // Critical section - must be executed atomically
+        private void CS(int localMax, int localMin) {
+            // Update shared values atomically
+            if (localMax > shared_max) {
+                shared_max = localMax;
+            }
+            if (localMin < shared_min) {
+                shared_min = localMin;
+            }
         }
 
         @Override
         public void run() {
             // Find local max and min in the assigned portion
-            int localMax = Integer.MIN_VALUE;
-            int localMin = Integer.MAX_VALUE;
+            int localMax = arr[start];
+            int localMin = arr[start];
             
-            // Only process if start is within array bounds
-            if (start < arr.length) {
-                localMax = arr[start];
-                localMin = arr[start];
-                
-                // Process remaining elements in chunk
-                for (int i = start + 1; i < end && i < arr.length; i++) {
-                    if (arr[i] > localMax) localMax = arr[i];
-                    if (arr[i] < localMin) localMin = arr[i];
-                }
+            // Process elements in chunk
+            for (int i = start + 1; i < end; i++) {
+                if (arr[i] > localMax) localMax = arr[i];
+                if (arr[i] < localMin) localMin = arr[i];
             }
 
-            // Critical section: Update shared max and min
-            lock.requestCS(threadId);
+            // Enter critical section to update shared values
+            lock.requestCS(tid);
             try {
-                if (localMax > shared_max) shared_max = localMax;
-                if (localMin < shared_min) shared_min = localMin;
+                CS(localMax, localMin);
             } finally {
-                lock.releaseCS(threadId);
+                lock.releaseCS(tid);
             }
         }
     }
@@ -59,31 +64,27 @@ public class Main {
         for (int i = 0; i < n; i++) {
             arr[i] = scanner.nextInt();
         }
-        
-        // Input number of threads
-        k = scanner.nextInt();
         scanner.close();
 
-        // Ensure k doesn't exceed array size
-        k = Math.min(k, n);
-
         // Initialize lock and shared variables
-        lock = new Bakery(k);
+        lock = new Dekker();
         shared_max = Integer.MIN_VALUE;
         shared_min = Integer.MAX_VALUE;
 
-        // Create and start threads
-        Thread[] threads = new Thread[k];
-        int chunkSize = (int) Math.ceil((double) n / k); // Proper ceiling division
+        // Create and start two threads
+        Thread[] threads = new Thread[2];
+        int mid = n / 2;
 
-        for (int i = 0; i < k; i++) {
-            int start = i * chunkSize;
-            int end = Math.min(start + chunkSize, n); // Ensure end doesn't exceed array length
-            threads[i] = new MaxMinThread(i, start, end);
-            threads[i].start();
-        }
+        // First thread processes first half
+        threads[0] = new MaxMinThread(lock, 0, 0, mid);
+        // Second thread processes second half
+        threads[1] = new MaxMinThread(lock, 1, mid, n);
 
-        // Wait for all threads to complete
+        // Start both threads
+        threads[0].start();
+        threads[1].start();
+
+        // Wait for both threads to complete
         for (Thread thread : threads) {
             try {
                 thread.join();
@@ -92,7 +93,7 @@ public class Main {
             }
         }
 
-        // Print results
+        // Print final results
         System.out.println("Gia tri lon nhat: " + shared_max);
         System.out.println("Gia tri nho nhat: " + shared_min);
     }
