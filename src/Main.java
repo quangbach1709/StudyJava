@@ -1,42 +1,99 @@
-import Lap4.MyCircle;
-import Lap4.MyPoint;
-import Lap4.MyTriangle;
-import Lap5.MyComplex;
-import Lap7.Cylinder;
-
+import java.util.Scanner;
 
 public class Main {
+    private static int[] arr;
+    private static int shared_max;
+    private static int shared_min;
+    private static Bakery lock;
+    private static int n; // Array size
+    private static int k; // Number of threads
+
+    static class MaxMinThread extends Thread {
+        private int threadId;
+        private int start;
+        private int end;
+
+        public MaxMinThread(int threadId, int start, int end) {
+            this.threadId = threadId;
+            this.start = start;
+            this.end = end;
+        }
+
+        @Override
+        public void run() {
+            // Find local max and min in the assigned portion
+            int localMax = Integer.MIN_VALUE;
+            int localMin = Integer.MAX_VALUE;
+            
+            // Only process if start is within array bounds
+            if (start < arr.length) {
+                localMax = arr[start];
+                localMin = arr[start];
+                
+                // Process remaining elements in chunk
+                for (int i = start + 1; i < end && i < arr.length; i++) {
+                    if (arr[i] > localMax) localMax = arr[i];
+                    if (arr[i] < localMin) localMin = arr[i];
+                }
+            }
+
+            // Critical section: Update shared max and min
+            lock.requestCS(threadId);
+            try {
+                if (localMax > shared_max) shared_max = localMax;
+                if (localMin < shared_min) shared_min = localMin;
+            } finally {
+                lock.releaseCS(threadId);
+            }
+        }
+    }
+
     public static void main(String[] args) {
-//        MyPoint p1 = new MyPoint(3, 0);
-//        MyPoint p2 = new MyPoint(0, 4);
-//        System.out.println(p1.distance(p2)); // in ra khoang cach giua 2 diem
-//        System.out.println(p1.distance(5, 6));// in ra khoang cach giua 2 diem
+        Scanner scanner = new Scanner(System.in);
+        
+        // Input array size
+        n = scanner.nextInt();
+        arr = new int[n];
+        
+        // Input array elements
+        for (int i = 0; i < n; i++) {
+            arr[i] = scanner.nextInt();
+        }
+        
+        // Input number of threads
+        k = scanner.nextInt();
+        scanner.close();
 
-//        MyCircle c1 = new MyCircle(3, 0, 5);
-//        System.out.println(c1.getArea());
-//        System.out.println(c1.toString());
+        // Ensure k doesn't exceed array size
+        k = Math.min(k, n);
 
-//        MyTriangle t1 = new MyTriangle(0, 0, 3, 0, 0, 4);
-//        System.out.println(t1.getPerimeter());
-//        System.out.println(t1.toString());
+        // Initialize lock and shared variables
+        lock = new Bakery(k);
+        shared_max = Integer.MIN_VALUE;
+        shared_min = Integer.MAX_VALUE;
 
-//        MyComplex c1 = new MyComplex(3, 4);
-//        MyComplex c2 = new MyComplex(3, 4);
-//        System.out.println(c1.equals(c2)); //so sanh 2 so phuc
-//        System.out.println(c1.magnitude()); //tinh do lon cua so phuc
-//        System.out.println(c1.argumentInDegrees() + " degrees"); //tinh goc cua so phuc
-//
-//        System.out.println(c1.toString());
-//        System.out.println(c1.isReal());
-//        //tinh tong hieu tich thuong 2 so phuc
-//        System.out.println(c1.add(c2));
-//        System.out.println(c1.subtract(c2));
-//        System.out.println(c1.multiply(c2));
-//        System.out.println(c1.divide(c2));
+        // Create and start threads
+        Thread[] threads = new Thread[k];
+        int chunkSize = (int) Math.ceil((double) n / k); // Proper ceiling division
 
-        Cylinder c1 = new Cylinder(3, 4);
-        System.out.println(c1.getVolume());
+        for (int i = 0; i < k; i++) {
+            int start = i * chunkSize;
+            int end = Math.min(start + chunkSize, n); // Ensure end doesn't exceed array length
+            threads[i] = new MaxMinThread(i, start, end);
+            threads[i].start();
+        }
 
+        // Wait for all threads to complete
+        for (Thread thread : threads) {
+            try {
+                thread.join();
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
 
+        // Print results
+        System.out.println("Gia tri lon nhat: " + shared_max);
+        System.out.println("Gia tri nho nhat: " + shared_min);
     }
 }
