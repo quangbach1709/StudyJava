@@ -1,42 +1,100 @@
-import Lap4.MyCircle;
-import Lap4.MyPoint;
-import Lap4.MyTriangle;
-import Lap5.MyComplex;
-import Lap7.Cylinder;
-
+import java.util.Scanner;
 
 public class Main {
+    private static int[] arr;
+    private static volatile int shared_max;
+    private static volatile int shared_min;
+    private static Dekker lock;
+    private static int n; // Array size
+
+    static class MaxMinThread extends Thread {
+        private Lock lock;
+        private int tid;
+        private int start;
+        private int end;
+
+        public MaxMinThread(Lock lock, int tid, int start, int end) {
+            this.lock = lock;
+            this.tid = tid;
+            this.start = start;
+            this.end = end;
+        }
+
+        // Critical section - must be executed atomically
+        private void CS(int localMax, int localMin) {
+            // Update shared values atomically
+            if (localMax > shared_max) {
+                shared_max = localMax;
+            }
+            if (localMin < shared_min) {
+                shared_min = localMin;
+            }
+        }
+
+        @Override
+        public void run() {
+            // Find local max and min in the assigned portion
+            int localMax = arr[start];
+            int localMin = arr[start];
+            
+            // Process elements in chunk
+            for (int i = start + 1; i < end; i++) {
+                if (arr[i] > localMax) localMax = arr[i];
+                if (arr[i] < localMin) localMin = arr[i];
+            }
+
+            // Enter critical section to update shared values
+            lock.requestCS(tid);
+            try {
+                CS(localMax, localMin);
+            } finally {
+                lock.releaseCS(tid);
+            }
+        }
+    }
+
     public static void main(String[] args) {
-//        MyPoint p1 = new MyPoint(3, 0);
-//        MyPoint p2 = new MyPoint(0, 4);
-//        System.out.println(p1.distance(p2)); // in ra khoang cach giua 2 diem
-//        System.out.println(p1.distance(5, 6));// in ra khoang cach giua 2 diem
+        Scanner scanner = new Scanner(System.in);
+        
+        // Input array size
+        n = scanner.nextInt();
+        arr = new int[n];
+        
+        // Input array elements
+        for (int i = 0; i < n; i++) {
+            arr[i] = scanner.nextInt();
+        }
+        scanner.close();
 
-//        MyCircle c1 = new MyCircle(3, 0, 5);
-//        System.out.println(c1.getArea());
-//        System.out.println(c1.toString());
+        // Initialize lock and shared variables
+        lock = new Dekker();
+        shared_max = Integer.MIN_VALUE;
+        shared_min = Integer.MAX_VALUE;
 
-//        MyTriangle t1 = new MyTriangle(0, 0, 3, 0, 0, 4);
-//        System.out.println(t1.getPerimeter());
-//        System.out.println(t1.toString());
+        // Create and start two threads
+        Thread[] threads = new Thread[2];
+        int mid = n / 2;
 
-//        MyComplex c1 = new MyComplex(3, 4);
-//        MyComplex c2 = new MyComplex(3, 4);
-//        System.out.println(c1.equals(c2)); //so sanh 2 so phuc
-//        System.out.println(c1.magnitude()); //tinh do lon cua so phuc
-//        System.out.println(c1.argumentInDegrees() + " degrees"); //tinh goc cua so phuc
-//
-//        System.out.println(c1.toString());
-//        System.out.println(c1.isReal());
-//        //tinh tong hieu tich thuong 2 so phuc
-//        System.out.println(c1.add(c2));
-//        System.out.println(c1.subtract(c2));
-//        System.out.println(c1.multiply(c2));
-//        System.out.println(c1.divide(c2));
+        // First thread processes first half
+        threads[0] = new MaxMinThread(lock, 0, 0, mid);
+        // Second thread processes second half
+        threads[1] = new MaxMinThread(lock, 1, mid, n);
 
-        Cylinder c1 = new Cylinder(3, 4);
-        System.out.println(c1.getVolume());
+        // Start both threads
+        threads[0].start();
+        threads[1].start();
 
+        // Wait for both threads to complete
+        for (Thread thread : threads) {
+            try {
+                thread.join();
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
 
+        // Print final results
+        System.out.println("Gia tri lon nhat: " + shared_max);
+        System.out.println("Gia tri nho nhat: " + shared_min);
     }
 }
